@@ -87,8 +87,8 @@ void evolve(char* currentfield, char* newfield, int starts[2], int ends[2],
   // width wird als int uebergeben
   // height wird aufgespalten in Teilfelder begrenzt durch start und end
   int summe_der_Nachbarn;
-  for (int y = 1; y < starts[X] - 1; y++) {
-    for (int x = 1; x < width - 1; x++) {
+  for (int y = starts[Y]; y < ends[Y] - 1; y++) {
+    for (int x = starts[X]; x < ends[Y] - 1; x++) {
       summe_der_Nachbarn = 0;
       int cell_index = calcIndex(width, x, y);
       // printf("cellindex: %d \n", cell_index);
