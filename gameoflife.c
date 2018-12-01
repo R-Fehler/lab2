@@ -154,6 +154,16 @@ void filling_runner(char* currentfield, int width, int stats[X]) {
 
 void apply_periodic_boundaries(char* field, int width, int height) {
   // TODO: implement periodic boundary copies
+  int neFieldCorner = calcIndex(width, width - 2, 1);
+  int nwFieldCorner = calcIndex(width, 1, 1);
+  int seFieldCorner = calcIndex(width, width - 2, height - 2);
+  int swFieldCorner = calcIndex(width, 1, height - 2);
+
+  int neBoundCorner = calcIndex(width, width - 1, 0);
+  int nwBoundCorner = calcIndex(width, 0, 0);
+  int seBoundCorner = calcIndex(width, width - 1, height - 1);
+  int swBoundCorner = calcIndex(width, 0, height - 1);
+
   for (int xi = 1; xi < width - 1; xi++) {
     int lowerBoundIndex = calcIndex(width, xi, height - 1);
     int upperFieldIndex = calcIndex(width, xi, 1);
