@@ -86,9 +86,14 @@ void evolve(char* currentfield, char* newfield, int starts[2], int ends[2],
   // HINT: use 'starts' and 'ends'
   // width wird als int uebergeben
   // height wird aufgespalten in Teilfelder begrenzt durch start und end
+  int a = starts[X];
+  int b = starts[Y];
+  int c = ends[X];
+  int d = ends[Y];
   int summe_der_Nachbarn;
-  for (int y = starts[Y]; y < ends[Y] - 1; y++) {
-    for (int x = starts[X]; x < ends[Y] - 1; x++) {
+
+  for (int y = b; y < d - 1; y++) {
+    for (int x = a; x < c - 1; x++) {
       summe_der_Nachbarn = 0;
       int cell_index = calcIndex(width, x, y);
       // printf("cellindex: %d \n", cell_index);
@@ -97,7 +102,6 @@ void evolve(char* currentfield, char* newfield, int starts[2], int ends[2],
         for (int y1 = -1; y1 <= 1; y1++) {
           if (currentfield[calcIndex(width, (x + x1), (y + y1))])
             summe_der_Nachbarn++;
-          //    printf("summe_der_Nachbarn: %d \n", summe_der_Nachbarn);
         }
       }
       // Wert der untersuchten Zelle von der Summe der Felder abziehen
@@ -105,15 +109,6 @@ void evolve(char* currentfield, char* newfield, int starts[2], int ends[2],
       if (currentfield[cell_index]) {
         summe_der_Nachbarn--;
       }
-      // printf("summe_der_Nachbarn: %d \n", summe_der_Nachbarn);
-
-      // wenn zelle lebt wird 1 von der summe
-      // abgezogen
-
-      // if (currentfield[cell_index] == DEAD && summe_der_Nachbarn == 3) {
-      //   newfield[cell_index] = ALIVE;
-      // }
-
       if (summe_der_Nachbarn <= 1) {
         newfield[cell_index] = DEAD;
       }
@@ -133,9 +128,9 @@ void evolve(char* currentfield, char* newfield, int starts[2], int ends[2],
   }
 }
 
-void filling_random(char* currentfield, int width, int stats[X]) {
+void filling_random(char* currentfield, int width, int height) {
   int i;
-  for (int y = 1; y < starts[X] - 1; y++) {
+  for (int y = 1; y < height - 1; y++) {
     for (int x = 1; x < width - 1; x++) {
       i = calcIndex(width, x, y);
       currentfield[i] =
@@ -144,10 +139,10 @@ void filling_random(char* currentfield, int width, int stats[X]) {
   }
 }
 
-void filling_runner(char* currentfield, int width, int stats[X]) {
-  currentfield[calcIndex(width, width / 2 + 0, stats[X] / 2 + 1)] = ALIVE;
-  currentfield[calcIndex(width, width / 2 + 1, stats[X] / 2 + 2)] = ALIVE;
-  currentfield[calcIndex(width, width / 2 + 2, stats[X] / 2 + 0)] = ALIVE;
+void filling_runner(char* currentfield, int width, int height) {
+  currentfield[calcIndex(width, width / 2 + 0, height / 2 + 1)] = ALIVE;
+  currentfield[calcIndex(width, width / 2 + 1, height / 2 + 2)] = ALIVE;
+  currentfield[calcIndex(width, width / 2 + 2, height / 2 + 0)] = ALIVE;
   currentfield[calcIndex(width, width / 2 + 2, height / 2 + 1)] = ALIVE;
   currentfield[calcIndex(width, width / 2 + 2, height / 2 + 2)] = ALIVE;
 }
@@ -192,14 +187,27 @@ void game(int width, int height, int num_timesteps) {
   char* currentfield = calloc(width * height, sizeof(char));
   char* newfield = calloc(width * height, sizeof(char));
   // TODO 1: use your favorite filling
-  // filling_random (currentfield, width, height);
-  // filling_runner (currentfield, width, height);
+  // filling_random(currentfield, width, height);
+  filling_runner(currentfield, width, height);
   int starts[2];
   int ends[2];
-  starts[X] = 1;
-  starts[Y] = 1;
-  ends[X] = width - 1;   // X ist width bereich
-  ends[Y] = height - 1;  // Y ist height bereich
+  int this_thread = omp_get_thread_num();
+  int num_threads = omp_get_num_threads()+1;
+  starts[X] = (this_thread)*50 / num_threads;
+  starts[Y] = (this_thread)*50 / num_threads;
+  // ThreadID nutzen um die Gebietskoordinaten zu berechnen
+  // so wie hier:
+  //   #pragma omp parallel
+  // {
+  //   int this_thread = omp_get_thread_num();
+  //   int num_threads = omp_get_num_threads();
+  //   int my_start = (this_thread  ) * 10 / num_threads;
+  //   int my_end   = (this_thread+1) * 10 / num_threads;
+  //   for(int n=my_start; n<my_end; ++n)
+  //     printf(" %d", n);
+
+  ends[X] = (this_thread + 1) * 50 / num_threads;  // X ist width bereich
+  ends[Y] = (this_thread + 1) * 50 / num_threads;  // Y ist height bereich
   int time = 0;
   write_field(currentfield, width, height, time);
   // TODO 3: implement periodic boundary condition
@@ -209,7 +217,9 @@ void game(int width, int height, int num_timesteps) {
     // TODO 2: implement evolve function (see above)
     evolve(currentfield, newfield, starts, ends, width);
     // TODO 3: implement periodic boundary condition
+    // hier sections um die ghostlayer
     apply_periodic_boundaries(newfield, width, height);
+    // barrier
     write_field(newfield, width, height, time);
     // TODO 4: implement SWAP of the fields
   }
@@ -236,8 +246,11 @@ int main(int c, char** v) {
     if (height <= 0) {
       height = 32;  ///< default height
     }
-    game(width, height, num_timesteps);
+    // game(width, height, num_timesteps);
   } else {
-    myexit("Too less arguments");
+    printf(
+        "Too less arguments: starting default game:\n   "
+        "game(omp_get_num_threads()*10,omp_get_num_threads()*10,100);");
+    game(omp_get_num_threads() * 50, omp_get_num_threads() * 50, 100);
   }
 }
