@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "stdarg.h": "c",
+        "string.h": "c",
+        "omp.h": "c"
+    }
+}
