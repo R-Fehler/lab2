@@ -36,7 +36,7 @@ void create_vtk_header(char* header, int width, int height, int timestep) {
   snprintf(buffer, sizeof(buffer), "DIMENSIONS %d %d 1\n", width, height);
   strcat(header, buffer);
   strcat(header, "SPACING 1.0 1.0 1.0\n");
-  strcat(header, "ORIGIN 0 0 0\n");
+  strcat(header, "ORIGIN 0 0 0\n");  // multithread gebietsursprung
   snprintf(buffer, sizeof(buffer), "POINT_DATA %ld\n", width * height);
   strcat(header, buffer);
   strcat(header, "SCALARS data char 1\n");
@@ -66,7 +66,7 @@ void write_field(char* currentfield, int width, int height, int timestep) {
     mkdir("./gol/", 0777);
     create_vtk_header(vtk_header, width, height, timestep);
   }
-  printf("writing timestep %d\n", timestep);
+  // printf("writing timestep %d\n", timestep);
   FILE* fp;  // The current file handle.
   char filename[1024];
   snprintf(filename, 1024, "./gol/gol-%05d.vtk", timestep);
@@ -74,7 +74,7 @@ void write_field(char* currentfield, int width, int height, int timestep) {
   write_vtk_data(fp, vtk_header, strlen(vtk_header));
   write_vtk_data(fp, currentfield, width * height);
   fclose(fp);
-  printf("finished writing timestep %d\n", timestep);
+  // printf("finished writing timestep %d\n", timestep);
 #endif
 }
 
@@ -87,11 +87,13 @@ void evolve(char* currentfield, char* newfield, int starts[2], int ends[2],
   // void evolve(char* currentfield, char* newfield, int width, int height) {
   // TODO traverse through each voxel and implement game of live logic
 
-#pragma omp for
-
-  for (int y = starts[1]; y < ends[1]; y++) {
+  // segmentation in subarrays die ~ zu NUMBERTHREADS sind
+  int summe_der_Nachbarn;
+#pragma omp for collapse(2)
+  for (int y = starts[Y]; y < ends[Y]; y++) {
     // printf("Thread Nr %d schreibt: y nr. %d\n", omp_get_thread_num(), y);
-    for (int x = 1, summe_der_Nachbarn; x < width; x++) {
+
+    for (int x = starts[X]; x < ends[X]; x++) {
       summe_der_Nachbarn = 0;
       int cell_index = calcIndex(width, x, y);
       // printf("cellindex: %d \n", cell_index);
@@ -219,10 +221,11 @@ void game(int width, int height, int num_timesteps) {
     evolve(currentfield, newfield, starts, ends, width);
 
     // TODO 3: implement periodic boundary condition
-
-    apply_periodic_boundaries(newfield, width, height);
+#pragma omp barrier
 #pragma omp single
     {
+      apply_periodic_boundaries(newfield, width, height);
+
       write_field(newfield, width, height, time);
       // TODO 4: implement SWAP of the fields
       swap_field(&currentfield, &newfield);
