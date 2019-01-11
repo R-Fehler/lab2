@@ -87,8 +87,8 @@ void evolve(char* currentfield, char* newfield, int starts[2], int ends[2],
   // void evolve(char* currentfield, char* newfield, int width, int height) {
   // TODO traverse through each voxel and implement game of live logic
   int summe_der_Nachbarn;
-  for (int y = starts[1]; y < ends[1] - 1; y++) {
-    for (int x = 1; x < width - 1; x++) {
+  for (int y = starts[1]; y < ends[1]; y++) {
+    for (int x = 1; x < width; x++) {
       summe_der_Nachbarn = 0;
       int cell_index = calcIndex(width, x, y);
       // printf("cellindex: %d \n", cell_index);
@@ -160,6 +160,38 @@ void filling_runner(char* currentfield, int width, int height) {
 
 void apply_periodic_boundaries(char* field, int width, int height) {
   // TODO: implement periodic boundary copies
+  int neFieldCorner = calcIndex(width, width - 2, 1);
+  int nwFieldCorner = calcIndex(width, 1, 1);
+  int seFieldCorner = calcIndex(width, width - 2, height - 2);
+  int swFieldCorner = calcIndex(width, 1, height - 2);
+
+  int neBoundCorner = calcIndex(width, width - 1, 0);
+  int nwBoundCorner = calcIndex(width, 0, 0);
+  int seBoundCorner = calcIndex(width, width - 1, height - 1);
+  int swBoundCorner = calcIndex(width, 0, height - 1);
+
+  for (int xi = 1; xi < width - 1; xi++) {
+    int lowerBoundIndex = calcIndex(width, xi, height - 1);
+    int upperFieldIndex = calcIndex(width, xi, 1);
+    field[lowerBoundIndex] = field[upperFieldIndex];
+
+    int upperBoundIndex = calcIndex(width, xi, 0);
+    int lowerFieldIndex = calcIndex(width, xi, height - 2);
+    field[upperBoundIndex] = field[lowerFieldIndex];
+  }
+  for (int yi = 1; yi < height - 1; yi++) {
+    int leftBoundIndex = calcIndex(width, 0, yi);
+    int rightFieldIndex = calcIndex(width, width - 2, yi);
+    field[leftBoundIndex] = field[rightFieldIndex];
+
+    int rightBoundIndex = calcIndex(width, width - 1, yi);
+    int leftFieldIndex = calcIndex(width, 1, yi);
+    field[rightBoundIndex] = field[leftFieldIndex];
+  }
+  field[nwBoundCorner] = field[seFieldCorner];
+  field[neBoundCorner] = field[swFieldCorner];
+  field[seBoundCorner] = field[nwFieldCorner];
+  field[swBoundCorner] = field[neFieldCorner];
 }
 
 void game(int width, int height, int num_timesteps) {
