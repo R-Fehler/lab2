@@ -8,7 +8,7 @@
 #include <unistd.h>
 // OPTIONAL: comment this out for console output
 //#define CONSOLE_OUTPUT
-#define NUMTHREADS 1
+#define NUMTHREADS 8
 #define calcIndex(width, x, y) ((y) * (width) + (x))
 #define ALIVE 1
 #define DEAD 0
@@ -86,9 +86,12 @@ void evolve(char* currentfield, char* newfield, int starts[2], int ends[2],
   // HINT: use 'starts' and 'ends'
   // void evolve(char* currentfield, char* newfield, int width, int height) {
   // TODO traverse through each voxel and implement game of live logic
-  int summe_der_Nachbarn;
+
+#pragma omp for
+
   for (int y = starts[1]; y < ends[1]; y++) {
-    for (int x = 1; x < width; x++) {
+    // printf("Thread Nr %d schreibt: y nr. %d\n", omp_get_thread_num(), y);
+    for (int x = 1, summe_der_Nachbarn; x < width; x++) {
       summe_der_Nachbarn = 0;
       int cell_index = calcIndex(width, x, y);
       // printf("cellindex: %d \n", cell_index);
@@ -204,8 +207,8 @@ void game(int width, int height, int num_timesteps) {
   int ends[2];
   starts[X] = 1;
   starts[Y] = 1;
-  ends[X] = width - 1;
-  ends[Y] = height - 1;
+  ends[X] = width - 1;   // ghost layer in x richtung
+  ends[Y] = height - 1;  // ghost layer in y richtung
   int time = 0;
   write_field(currentfield, width, height, time);
   // TODO 3: implement periodic boundary condition
@@ -214,11 +217,16 @@ void game(int width, int height, int num_timesteps) {
   for (time = 1; time <= num_timesteps; time++) {
     // TODO 2: implement evolve function (see above)
     evolve(currentfield, newfield, starts, ends, width);
+
     // TODO 3: implement periodic boundary condition
+
     apply_periodic_boundaries(newfield, width, height);
-    write_field(newfield, width, height, time);
-    // TODO 4: implement SWAP of the fields
-    swap_field(&currentfield, &newfield);
+#pragma omp single
+    {
+      write_field(newfield, width, height, time);
+      // TODO 4: implement SWAP of the fields
+      swap_field(&currentfield, &newfield);
+    }
   }
   free(currentfield);
   free(newfield);
@@ -227,11 +235,11 @@ void game(int width, int height, int num_timesteps) {
 int main(int c, char** v) {
   omp_set_num_threads(NUMTHREADS);
 #pragma omp parallel
-  {
+  {  // start omp
     if (omp_get_thread_num() == 0) {
       printf("Running with %d threads\n", omp_get_num_threads());
     }
-  }
+  }  // end omp
   int width = 0, height = 0, num_timesteps;
   if (c == 4) {
     width = atoi(v[1]) + 2;  ///< read width + 2 boundary cells (low x, high x)
