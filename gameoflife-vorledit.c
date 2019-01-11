@@ -8,7 +8,9 @@
 #include <unistd.h>
 // OPTIONAL: comment this out for console output
 //#define CONSOLE_OUTPUT
-#define NUMTHREADS 8
+#define NUMTHREADS 4  // gebietsgroesse soll sich aus nr an threads ergeben
+#define ARRAYSIZE_PER_THREAD_X 25  // 25^2
+#define ARRAYSIZE_PER_THREAD_Y 25  // 25^2
 #define calcIndex(width, x, y) ((y) * (width) + (x))
 #define ALIVE 1
 #define DEAD 0
@@ -89,7 +91,7 @@ void evolve(char* currentfield, char* newfield, int starts[2], int ends[2],
 
   // segmentation in subarrays die ~ zu NUMBERTHREADS sind
   int summe_der_Nachbarn;
-#pragma omp for collapse(2)
+  //#pragma omp for collapse(2)
   for (int y = starts[Y]; y < ends[Y]; y++) {
     // printf("Thread Nr %d schreibt: y nr. %d\n", omp_get_thread_num(), y);
 
@@ -203,32 +205,53 @@ void game(int width, int height, int num_timesteps) {
   char* currentfield = calloc(width * height, sizeof(char));
   char* newfield = calloc(width * height, sizeof(char));
   // TODO 1: use your favorite filling
-  // filling_random (currentfield, width, height);
-  filling_runner(currentfield, width, height);
+  filling_random(currentfield, width, height);
+  // filling_runner(currentfield, width, height);
   int starts[2];
   int ends[2];
   starts[X] = 1;
   starts[Y] = 1;
-  ends[X] = width - 1;   // ghost layer in x richtung
-  ends[Y] = height - 1;  // ghost layer in y richtung
+  ends[X] = width - 1;
+  ends[Y] = height - 1;
+  int segment_start[NUMTHREADS][NUMTHREADS][2];
+  int segment_end[NUMTHREADS][NUMTHREADS][2];
+
+  for (size_t x = 0; x < NUMTHREADS; x++) {
+    for (size_t y = 0; y < NUMTHREADS; y++) {
+      segment_start[x][y][X] = 1 + (ARRAYSIZE_PER_THREAD_X * x);
+      segment_start[x][y][Y] = 1 + (ARRAYSIZE_PER_THREAD_Y * y);
+      segment_end[x][y][X] = (ARRAYSIZE_PER_THREAD_X * (x + 1)) - 1;
+      segment_end[x][y][Y] = (ARRAYSIZE_PER_THREAD_Y * (y + 1)) - 1;
+
+      // 2D umwandln
+    }
+  }
+
   int time = 0;
   write_field(currentfield, width, height, time);
   // TODO 3: implement periodic boundary condition
   apply_periodic_boundaries(currentfield, width, height);
 #pragma omp parallel default(shared) firstprivate(time)
-  for (time = 1; time <= num_timesteps; time++) {
-    // TODO 2: implement evolve function (see above)
-    evolve(currentfield, newfield, starts, ends, width);
+  {
+    int thread_id = omp_get_thread_num();
+    for (time = 1; time <= num_timesteps; time++) {
+      // TODO 2: implement evolve function (see above)
+      // evolve als sections // GL Austausch
+      for (size_t i = 0; i < NUMTHREADS; i++) {
+        evolve(currentfield, newfield, segment_start[i][thread_id],
+               segment_end[i][thread_id], width);
+      }
 
-    // TODO 3: implement periodic boundary condition
+      // TODO 3: implement periodic boundary condition
 #pragma omp barrier
 #pragma omp single
-    {
-      apply_periodic_boundaries(newfield, width, height);
+      {
+        apply_periodic_boundaries(newfield, width, height);
 
-      write_field(newfield, width, height, time);
-      // TODO 4: implement SWAP of the fields
-      swap_field(&currentfield, &newfield);
+        write_field(newfield, width, height, time);
+        // TODO 4: implement SWAP of the fields
+        swap_field(&currentfield, &newfield);
+      }
     }
   }
   free(currentfield);
@@ -244,11 +267,15 @@ int main(int c, char** v) {
     }
   }  // end omp
   int width = 0, height = 0, num_timesteps;
-  if (c == 4) {
-    width = atoi(v[1]) + 2;  ///< read width + 2 boundary cells (low x, high x)
-    height =
-        atoi(v[2]) + 2;  ///< read height + 2 boundary cells (low y, high y)
-    num_timesteps = atoi(v[3]);  ///< read timesteps
+  if (c == 2) {
+    // width = atoi(v[1]) + 2;  ///< read width + 2 boundary cells (low x,
+    // high x)
+    width = ARRAYSIZE_PER_THREAD_X * NUMTHREADS;
+    // height = atoi(v[2]) + 2;
+    ///< read height + 2 boundary cells (low y, high y)
+    height = ARRAYSIZE_PER_THREAD_Y * NUMTHREADS;
+    // num_timesteps = atoi(v[3]);  ///< read timesteps
+    num_timesteps = atoi(v[1]);
     if (width <= 0) {
       width = 32;  ///< default width
     }
