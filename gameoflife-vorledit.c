@@ -92,18 +92,19 @@ void evolve(char* currentfield, char* newfield, int starts[2], int ends[2],
   // segmentation in subarrays die ~ zu NUMBERTHREADS sind
   int summe_der_Nachbarn;
   //#pragma omp for collapse(2)
-  for (int y = starts[Y]; y < ends[Y]; y++) {
+  for (int y = starts[Y] - 1; y <= ends[Y]; y++) {
+    // TODO: kleiner gleich oder echt kleiner?
     // printf("Thread Nr %d schreibt: y nr. %d\n", omp_get_thread_num(), y);
 
-    for (int x = starts[X]; x < ends[X]; x++) {
+    for (int x = starts[X] - 1; x <= ends[X]; x++) {
       summe_der_Nachbarn = 0;
       int cell_index = calcIndex(width, x, y);
       // printf("cellindex: %d \n", cell_index);
       // Durchlaufen der 9 Felder des aktuellen "Stempels"
       for (int x1 = -1; x1 <= 1; x1++) {
         for (int y1 = -1; y1 <= 1; y1++) {
-          if (currentfield[calcIndex(width, (x + x1), (y + y1))])
-            summe_der_Nachbarn++;
+          summe_der_Nachbarn +=
+              currentfield[calcIndex(width, (x + x1), (y + y1))];
           //    printf("summe_der_Nachbarn: %d \n", summe_der_Nachbarn);
         }
       }
