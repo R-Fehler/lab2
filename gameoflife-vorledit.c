@@ -6,11 +6,12 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+// Programm ARGS: NUMTHREADS_IN_X, NUMTHREADS_IN_Y, num_timesteps
 // OPTIONAL: comment this out for console output
 //#define CONSOLE_OUTPUT
-#define NUMTHREADS 4  // gebietsgroesse soll sich aus nr an threads ergeben
-#define ARRAYSIZE_PER_THREAD_X 25  // 25^2
-#define ARRAYSIZE_PER_THREAD_Y 25  // 25^2
+
+#define ARRAYSIZE_PER_THREAD_X 200  // 25^2
+#define ARRAYSIZE_PER_THREAD_Y 200  // 25^2
 #define calcIndex(width, x, y) ((y) * (width) + (x))
 #define ALIVE 1
 #define DEAD 0
@@ -202,7 +203,8 @@ void apply_periodic_boundaries(char* field, int width, int height) {
   field[swBoundCorner] = field[neFieldCorner];
 }
 
-void game(int width, int height, int num_timesteps) {
+void game(int width, int height, int num_timesteps, int NUMTHREADS_IN_X,
+          int NUMTHREADS_IN_Y) {
   char* currentfield = calloc(width * height, sizeof(char));
   char* newfield = calloc(width * height, sizeof(char));
   // TODO 1: use your favorite filling
@@ -214,11 +216,11 @@ void game(int width, int height, int num_timesteps) {
   starts[Y] = 1;
   ends[X] = width - 1;
   ends[Y] = height - 1;
-  int segment_start[NUMTHREADS][NUMTHREADS][2];
-  int segment_end[NUMTHREADS][NUMTHREADS][2];
+  int segment_start[NUMTHREADS_IN_X][NUMTHREADS_IN_Y][2];
+  int segment_end[NUMTHREADS_IN_X][NUMTHREADS_IN_Y][2];
 
-  for (size_t x = 0; x < NUMTHREADS; x++) {
-    for (size_t y = 0; y < NUMTHREADS; y++) {
+  for (size_t x = 0; x < NUMTHREADS_IN_X; x++) {
+    for (size_t y = 0; y < NUMTHREADS_IN_Y; y++) {
       segment_start[x][y][X] = 1 + (ARRAYSIZE_PER_THREAD_X * x);
       segment_start[x][y][Y] = 1 + (ARRAYSIZE_PER_THREAD_Y * y);
       segment_end[x][y][X] = (ARRAYSIZE_PER_THREAD_X * (x + 1)) - 1;
@@ -236,11 +238,15 @@ void game(int width, int height, int num_timesteps) {
   {
     int thread_id = omp_get_thread_num();
     for (time = 1; time <= num_timesteps; time++) {
-      // TODO 2: implement evolve function (see above)
-      // evolve als sections // GL Austausch
-      for (size_t i = 0; i < NUMTHREADS; i++) {
-        evolve(currentfield, newfield, segment_start[i][thread_id],
-               segment_end[i][thread_id], width);
+// TODO 2: implement evolve function (see above)
+// evolve als sections // GL Austausch
+#pragma omp for collapse(2)
+      for (size_t x = 0; x < NUMTHREADS_IN_X; x++) {  // TODO:
+
+        for (size_t y = 0; y < NUMTHREADS_IN_Y; y++) {
+          evolve(currentfield, newfield, segment_start[x][y], segment_end[x][y],
+                 width);
+        }
       }
 
       // TODO 3: implement periodic boundary condition
@@ -260,30 +266,31 @@ void game(int width, int height, int num_timesteps) {
 }
 
 int main(int c, char** v) {
-  omp_set_num_threads(NUMTHREADS);
-#pragma omp parallel
-  {  // start omp
-    if (omp_get_thread_num() == 0) {
-      printf("Running with %d threads\n", omp_get_num_threads());
-    }
-  }  // end omp
   int width = 0, height = 0, num_timesteps;
-  if (c == 2) {
-    // width = atoi(v[1]) + 2;  ///< read width + 2 boundary cells (low x,
-    // high x)
-    width = ARRAYSIZE_PER_THREAD_X * NUMTHREADS;
-    // height = atoi(v[2]) + 2;
-    ///< read height + 2 boundary cells (low y, high y)
-    height = ARRAYSIZE_PER_THREAD_Y * NUMTHREADS;
-    // num_timesteps = atoi(v[3]);  ///< read timesteps
-    num_timesteps = atoi(v[1]);
+  int NUMTHREADS_IN_X, NUMTHREADS_IN_Y;
+  if (c == 4) {
+    NUMTHREADS_IN_X = atoi(v[1]);
+    width = ARRAYSIZE_PER_THREAD_X * NUMTHREADS_IN_X;
+    NUMTHREADS_IN_Y = atoi(v[2]);
+    height = ARRAYSIZE_PER_THREAD_Y * NUMTHREADS_IN_Y;
+    num_timesteps = atoi(v[3]);  ///< read timesteps
     if (width <= 0) {
       width = 32;  ///< default width
     }
     if (height <= 0) {
       height = 32;  ///< default height
     }
-    game(width, height, num_timesteps);
+    omp_set_num_threads((NUMTHREADS_IN_X * NUMTHREADS_IN_Y));
+#pragma omp parallel
+    {  // start omp
+      if (omp_get_thread_num() == 0) {
+        printf("Running with %d threads\n", omp_get_num_threads());
+      }
+    }  // end omp
+    printf("Spielfeldgroesse: %d x %d, = %d\n", width, height,
+           (width * height));
+
+    game(width, height, num_timesteps, NUMTHREADS_IN_X, NUMTHREADS_IN_Y);
   } else {
     myexit("Too less arguments");
   }
