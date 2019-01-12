@@ -11,8 +11,8 @@
 // OPTIONAL: comment this out for console output
 //#define CONSOLE_OUTPUT
 
-#define ARRAYSIZE_PER_THREAD_X 100  // 25^2
-#define ARRAYSIZE_PER_THREAD_Y 100  // 25^2
+//#define ARRAYSIZE_PER_THREAD_X 100  // 25^2
+//#define ARRAYSIZE_PER_THREAD_Y 100  // 25^2
 #define calcIndex(width, x, y) ((y) * (width) + (x))
 #define ALIVE 1
 #define DEAD 0
@@ -205,7 +205,8 @@ void apply_periodic_boundaries(char* field, int width, int height) {
 }
 
 void game(int width, int height, int num_timesteps, int num_threads_in_x,
-          int num_threads_in_y) {
+          int num_threads_in_y, int ARRAYSIZE_PER_THREAD_X,
+          int ARRAYSIZE_PER_THREAD_Y) {
   char* currentfield = calloc(width * height, sizeof(char));
   char* newfield = calloc(width * height, sizeof(char));
   // TODO 1: use your favorite filling
@@ -269,12 +270,16 @@ void game(int width, int height, int num_timesteps, int num_threads_in_x,
 int main(int c, char** v) {
   int width = 0, height = 0, num_timesteps;
   int num_threads_in_x, num_threads_in_y;
-  if (c == 4) {
+  int ARRAYSIZE_PER_THREAD_X, ARRAYSIZE_PER_THREAD_Y;
+  if (c == 6) {
     num_threads_in_x = atoi(v[1]);
-    width = ARRAYSIZE_PER_THREAD_X * num_threads_in_x;
     num_threads_in_y = atoi(v[2]);
+    ARRAYSIZE_PER_THREAD_X = atoi(v[3]);
+    ARRAYSIZE_PER_THREAD_Y = atoi(v[4]);
+    num_timesteps = atoi(v[5]);  ///< read timesteps
+    width = ARRAYSIZE_PER_THREAD_X * num_threads_in_x;
     height = ARRAYSIZE_PER_THREAD_Y * num_threads_in_y;
-    num_timesteps = atoi(v[3]);  ///< read timesteps
+
     if (width <= 0) {
       width = 32;  ///< default width
     }
@@ -291,7 +296,8 @@ int main(int c, char** v) {
     printf("Spielfeldgroesse: %d x %d, = %d\n", width, height,
            (width * height));
 
-    game(width, height, num_timesteps, num_threads_in_x, num_threads_in_y);
+    game(width, height, num_timesteps, num_threads_in_x, num_threads_in_y,
+         ARRAYSIZE_PER_THREAD_X, ARRAYSIZE_PER_THREAD_Y);
   } else {
     myexit("Too less arguments");
   }
