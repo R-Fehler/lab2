@@ -6,12 +6,13 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-// Programm ARGS: NUMTHREADS_IN_X, NUMTHREADS_IN_Y, num_timesteps
+// Programm ARGS: num_threads_in_x, num_threads_in_y, num_timesteps
+// ebenfalls bus error nach feldgr. > 120000 ca. als ueber 12 Threads
 // OPTIONAL: comment this out for console output
 //#define CONSOLE_OUTPUT
 
-#define ARRAYSIZE_PER_THREAD_X 200  // 25^2
-#define ARRAYSIZE_PER_THREAD_Y 200  // 25^2
+#define ARRAYSIZE_PER_THREAD_X 100  // 25^2
+#define ARRAYSIZE_PER_THREAD_Y 100  // 25^2
 #define calcIndex(width, x, y) ((y) * (width) + (x))
 #define ALIVE 1
 #define DEAD 0
@@ -203,8 +204,8 @@ void apply_periodic_boundaries(char* field, int width, int height) {
   field[swBoundCorner] = field[neFieldCorner];
 }
 
-void game(int width, int height, int num_timesteps, int NUMTHREADS_IN_X,
-          int NUMTHREADS_IN_Y) {
+void game(int width, int height, int num_timesteps, int num_threads_in_x,
+          int num_threads_in_y) {
   char* currentfield = calloc(width * height, sizeof(char));
   char* newfield = calloc(width * height, sizeof(char));
   // TODO 1: use your favorite filling
@@ -216,11 +217,11 @@ void game(int width, int height, int num_timesteps, int NUMTHREADS_IN_X,
   starts[Y] = 1;
   ends[X] = width - 1;
   ends[Y] = height - 1;
-  int segment_start[NUMTHREADS_IN_X][NUMTHREADS_IN_Y][2];
-  int segment_end[NUMTHREADS_IN_X][NUMTHREADS_IN_Y][2];
+  int segment_start[num_threads_in_x][num_threads_in_y][2];
+  int segment_end[num_threads_in_x][num_threads_in_y][2];
 
-  for (size_t x = 0; x < NUMTHREADS_IN_X; x++) {
-    for (size_t y = 0; y < NUMTHREADS_IN_Y; y++) {
+  for (size_t x = 0; x < num_threads_in_x; x++) {
+    for (size_t y = 0; y < num_threads_in_y; y++) {
       segment_start[x][y][X] = 1 + (ARRAYSIZE_PER_THREAD_X * x);
       segment_start[x][y][Y] = 1 + (ARRAYSIZE_PER_THREAD_Y * y);
       segment_end[x][y][X] = (ARRAYSIZE_PER_THREAD_X * (x + 1)) - 1;
@@ -241,9 +242,9 @@ void game(int width, int height, int num_timesteps, int NUMTHREADS_IN_X,
 // TODO 2: implement evolve function (see above)
 // evolve als sections // GL Austausch
 #pragma omp for collapse(2)
-      for (size_t x = 0; x < NUMTHREADS_IN_X; x++) {  // TODO:
+      for (size_t x = 0; x < num_threads_in_x; x++) {  // TODO:
 
-        for (size_t y = 0; y < NUMTHREADS_IN_Y; y++) {
+        for (size_t y = 0; y < num_threads_in_y; y++) {
           evolve(currentfield, newfield, segment_start[x][y], segment_end[x][y],
                  width);
         }
@@ -267,12 +268,12 @@ void game(int width, int height, int num_timesteps, int NUMTHREADS_IN_X,
 
 int main(int c, char** v) {
   int width = 0, height = 0, num_timesteps;
-  int NUMTHREADS_IN_X, NUMTHREADS_IN_Y;
+  int num_threads_in_x, num_threads_in_y;
   if (c == 4) {
-    NUMTHREADS_IN_X = atoi(v[1]);
-    width = ARRAYSIZE_PER_THREAD_X * NUMTHREADS_IN_X;
-    NUMTHREADS_IN_Y = atoi(v[2]);
-    height = ARRAYSIZE_PER_THREAD_Y * NUMTHREADS_IN_Y;
+    num_threads_in_x = atoi(v[1]);
+    width = ARRAYSIZE_PER_THREAD_X * num_threads_in_x;
+    num_threads_in_y = atoi(v[2]);
+    height = ARRAYSIZE_PER_THREAD_Y * num_threads_in_y;
     num_timesteps = atoi(v[3]);  ///< read timesteps
     if (width <= 0) {
       width = 32;  ///< default width
@@ -280,7 +281,7 @@ int main(int c, char** v) {
     if (height <= 0) {
       height = 32;  ///< default height
     }
-    omp_set_num_threads((NUMTHREADS_IN_X * NUMTHREADS_IN_Y));
+    omp_set_num_threads((num_threads_in_x * num_threads_in_y));
 #pragma omp parallel
     {  // start omp
       if (omp_get_thread_num() == 0) {
@@ -290,7 +291,7 @@ int main(int c, char** v) {
     printf("Spielfeldgroesse: %d x %d, = %d\n", width, height,
            (width * height));
 
-    game(width, height, num_timesteps, NUMTHREADS_IN_X, NUMTHREADS_IN_Y);
+    game(width, height, num_timesteps, num_threads_in_x, num_threads_in_y);
   } else {
     myexit("Too less arguments");
   }
