@@ -1,27 +1,28 @@
 #!/usr/bin/env bash
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
+        alias gtime=time
+fi
+mkdir log
 LOOP=10
 NTIMESTEPS=50
 FELD1=128
 FELD2=$(($FELD1*2))
 FELD3=$(($FELD1*4))
 PATH_TO="./build/vorledit"
-    echo "FeldNr. Zeit in sek CPU %">logtime 
-    echo "LOG:" > logprogram
+    echo "FeldNr. Zeit in sek CPU %">log/logtime 
+    echo "LOG:" > log/logprogram
     printf "Feldgroesse 1: %d\n" $FELD1
     printf "Feldgroesse 2: %d\n" $FELD2
     printf "Feldgroesse 3: %d\n" $FELD3
 
     for (( i = 0; i < $LOOP; i++ )); do
-    # printf "Iteration_Nr. %d" $i >> logtime
-   (gtime -f "1 %e %P" $PATH_TO $FELD1 $FELD1 $NTIMESTEPS)>>logprogram 2>>logtime
-    # printf "Iteration_Nr. %d" $i >> logtime
-   (gtime -f "2 %e %P " $PATH_TO $FELD2 $FELD2 $NTIMESTEPS)>>logprogram 2>>logtime
-    # printf "Iteration_Nr. %d" $i >> logtime
-   (gtime -f "3 %e %P " $PATH_TO $FELD3 $FELD3 $NTIMESTEPS)>>logprogram 2>>logtime
+   (gtime -f "1 %e %P" $PATH_TO $FELD1 $FELD1 $NTIMESTEPS) >>log/logprogram 2>>log/logtime
+   (gtime -f "2 %e %P " $PATH_TO $FELD2 $FELD2 $NTIMESTEPS)>>log/logprogram 2>>log/logtime
+   (gtime -f "3 %e %P " $PATH_TO $FELD3 $FELD3 $NTIMESTEPS)>>log/logprogram 2>>log/logtime
     done
-awk '$1=="1" {printf"%s, %s\n", $2, $3}' logtime > logtime1.csv
-awk '$1=="2" {printf"%s, %s\n", $2, $3}' logtime > logtime2.csv
-awk '$1=="3" {printf"%s, %s\n", $2, $3}' logtime > logtime3.csv
+awk '$1=="1" {printf"%s, %s\n", $2, $3}' log/logtime > log/logtime1.csv
+awk '$1=="2" {printf"%s, %s\n", $2, $3}' log/logtime > log/logtime2.csv
+awk '$1=="3" {printf"%s, %s\n", $2, $3}' log/logtime > log/logtime3.csv
 
 
     
