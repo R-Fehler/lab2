@@ -2,10 +2,10 @@
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
         alias gtime=time
 fi
-mkdir log
-LOOP=10
-NTIMESTEPS=50
-FELD1=128
+mkdir -p log
+LOOP=5
+NTIMESTEPS=500
+FELD1=512
 FELD2=$(($FELD1*2))
 FELD3=$(($FELD1*4))
 PATH_TO="./build/vorledit"
