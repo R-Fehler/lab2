@@ -8,7 +8,7 @@ NTIMESTEPS=500
 FELD1=512
 FELD2=$(($FELD1*2))
 FELD3=$(($FELD1*4))
-PATH_TO="./build/vorledit"
+PATH_TO="./build/gameoflife"
     echo "FeldNr. Zeit in sek CPU %">log/logtime 
     echo "LOG:" > log/logprogram
     printf "Feldgroesse 1: %d\n" $FELD1
