@@ -4,3 +4,4 @@ gol
 log
 results
 gameoflife-kommi.c
+.DS_*

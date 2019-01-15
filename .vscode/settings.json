@@ -2,6 +2,8 @@
     "files.associations": {
         "stdarg.h": "c",
         "string.h": "c",
-        "omp.h": "c"
-    }
+        "omp.h": "c",
+        "stdlib.h": "c"
+    },
+    "C_Cpp.default.configurationProvider": "vector-of-bool.cmake-tools"
 }

@@ -6,13 +6,15 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-// Programm ARGS: num_threads_in_x, num_threads_in_y, num_timesteps
-// ebenfalls bus error nach feldgr. > 120000 ca. als ueber 12 Threads
+// Programm ARGS:  num_threads_in_x, num_threads_in_y,
+// ARRAYSIZE_PER_THREAD_X, ARRAYSIZE_PER_THREAD_Y,num_timesteps
+//
+//  ebenfalls bus error nach
+// feldgr. > 120000 ca. also ueber 12 Threads
+//
 // OPTIONAL: comment this out for console output
 //#define CONSOLE_OUTPUT
 
-//#define ARRAYSIZE_PER_THREAD_X 100  // 25^2
-//#define ARRAYSIZE_PER_THREAD_Y 100  // 25^2
 #define calcIndex(width, x, y) ((y) * (width) + (x))
 #define ALIVE 1
 #define DEAD 0
@@ -95,19 +97,14 @@ void evolve(char* currentfield, char* newfield, int starts[2], int ends[2],
   int summe_der_Nachbarn;
   //#pragma omp for collapse(2)
   for (int y = starts[Y] - 1; y <= ends[Y]; y++) {
-    // TODO: kleiner gleich oder echt kleiner?
-    // printf("Thread Nr %d schreibt: y nr. %d\n", omp_get_thread_num(), y);
-
     for (int x = starts[X] - 1; x <= ends[X]; x++) {
       summe_der_Nachbarn = 0;
       int cell_index = calcIndex(width, x, y);
-      // printf("cellindex: %d \n", cell_index);
       // Durchlaufen der 9 Felder des aktuellen "Stempels"
       for (int x1 = -1; x1 <= 1; x1++) {
         for (int y1 = -1; y1 <= 1; y1++) {
           summe_der_Nachbarn +=
               currentfield[calcIndex(width, (x + x1), (y + y1))];
-          //    printf("summe_der_Nachbarn: %d \n", summe_der_Nachbarn);
         }
       }
       // Wert der untersuchten Zelle von der Summe der Felder abziehen
@@ -115,14 +112,6 @@ void evolve(char* currentfield, char* newfield, int starts[2], int ends[2],
       if (currentfield[cell_index]) {
         summe_der_Nachbarn--;
       }
-      // printf("summe_der_Nachbarn: %d \n", summe_der_Nachbarn);
-
-      // wenn zelle lebt wird 1 von der summe
-      // abgezogen
-
-      // if (currentfield[cell_index] == DEAD && summe_der_Nachbarn == 3) {
-      //   newfield[cell_index] = ALIVE;
-      // }
 
       if (summe_der_Nachbarn <= 1) {
         newfield[cell_index] = DEAD;
@@ -227,8 +216,6 @@ void game(int width, int height, int num_timesteps, int num_threads_in_x,
       segment_start[x][y][Y] = 1 + (ARRAYSIZE_PER_THREAD_Y * y);
       segment_end[x][y][X] = (ARRAYSIZE_PER_THREAD_X * (x + 1)) - 1;
       segment_end[x][y][Y] = (ARRAYSIZE_PER_THREAD_Y * (y + 1)) - 1;
-
-      // 2D umwandln
     }
   }
 
@@ -241,7 +228,6 @@ void game(int width, int height, int num_timesteps, int num_threads_in_x,
     int thread_id = omp_get_thread_num();
     for (time = 1; time <= num_timesteps; time++) {
 // TODO 2: implement evolve function (see above)
-// evolve als sections // GL Austausch
 #pragma omp for collapse(2)
       for (size_t x = 0; x < num_threads_in_x; x++) {  // TODO:
 
