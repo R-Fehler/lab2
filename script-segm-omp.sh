@@ -25,13 +25,4 @@ awk '$1=="3" {printf"%s, %s\n", $2, $3}' log/logtime > log/logtime3.csv
 
 
     
-# das funktioniert so
-# (time ./build/vorledit 1024 1024 20)>>logprogram 2>>logtime
-# for (( i = 0; i < $LOOP; i++ )); do
-#     print i >>logtime
-# (time ./build/vorledit 2048 2048 20)>logprogram 2>logtime
-# done
-# for (( i = 0; i < $LOOP; i++ )); do
-#     print i >>logtime
-# (time ./build/vorledit 4096 4096 20)>logprogram 2>logtime
-# done
+
