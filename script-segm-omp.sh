@@ -9,7 +9,7 @@ num_threads_in_x=(1 2 4) #bash Array
 num_threads_in_y=(1 2 2)
 ARRAYSIZE_PER_THREAD_X=100
 ARRAYSIZE_PER_THREAD_Y=100
-PATH_TO="./build/vorledit"
+PATH_TO="./build/gameoflife"
     echo "FeldNr. Zeit in sek CPU %">log/logtime 
     echo "LOG:" > log/logprogram
 
