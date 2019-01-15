@@ -6,10 +6,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-
 // OPTIONAL: comment this out for console output
 //#define CONSOLE_OUTPUT
-
+#define NUMTHREADS 8
 #define calcIndex(width, x, y) ((y) * (width) + (x))
 #define ALIVE 1
 #define DEAD 0
@@ -37,7 +36,7 @@ void create_vtk_header(char* header, int width, int height, int timestep) {
   snprintf(buffer, sizeof(buffer), "DIMENSIONS %d %d 1\n", width, height);
   strcat(header, buffer);
   strcat(header, "SPACING 1.0 1.0 1.0\n");
-  strcat(header, "ORIGIN 0 0 0\n");
+  strcat(header, "ORIGIN 0 0 0\n");  // multithread gebietsursprung
   snprintf(buffer, sizeof(buffer), "POINT_DATA %ld\n", width * height);
   strcat(header, buffer);
   strcat(header, "SCALARS data char 1\n");
@@ -67,7 +66,7 @@ void write_field(char* currentfield, int width, int height, int timestep) {
     mkdir("./gol/", 0777);
     create_vtk_header(vtk_header, width, height, timestep);
   }
-  printf("writing timestep %d\n", timestep);
+  // printf("writing timestep %d\n", timestep);
   FILE* fp;  // The current file handle.
   char filename[1024];
   snprintf(filename, 1024, "./gol/gol-%05d.vtk", timestep);
@@ -75,25 +74,26 @@ void write_field(char* currentfield, int width, int height, int timestep) {
   write_vtk_data(fp, vtk_header, strlen(vtk_header));
   write_vtk_data(fp, currentfield, width * height);
   fclose(fp);
-  printf("finished writing timestep %d\n", timestep);
+  // printf("finished writing timestep %d\n", timestep);
 #endif
 }
 
 void evolve(char* currentfield, char* newfield, int starts[2], int ends[2],
             int width) {
+  // void evolve (char* currentfield, char* newfield, int width, int height) {
   // TODO traverse through each voxel and implement game of live logic and
   // parallelize using OpenMP.
   // HINT: use 'starts' and 'ends'
-  // width wird als int uebergeben
-  // height wird aufgespalten in Teilfelder begrenzt durch start und end
-  int a = starts[X];
-  int b = starts[Y];
-  int c = ends[X];
-  int d = ends[Y];
-  int summe_der_Nachbarn;
+  // void evolve(char* currentfield, char* newfield, int width, int height) {
+  // TODO traverse through each voxel and implement game of live logic
 
-  for (int y = b; y < d - 1; y++) {
-    for (int x = a; x < c - 1; x++) {
+  // segmentation in subarrays die ~ zu NUMBERTHREADS sind
+  int summe_der_Nachbarn;
+#pragma omp for collapse(2)
+  for (int y = starts[Y]; y < ends[Y]; y++) {
+    // printf("Thread Nr %d schreibt: y nr. %d\n", omp_get_thread_num(), y);
+
+    for (int x = starts[X]; x < ends[X]; x++) {
       summe_der_Nachbarn = 0;
       int cell_index = calcIndex(width, x, y);
       // printf("cellindex: %d \n", cell_index);
@@ -102,6 +102,7 @@ void evolve(char* currentfield, char* newfield, int starts[2], int ends[2],
         for (int y1 = -1; y1 <= 1; y1++) {
           if (currentfield[calcIndex(width, (x + x1), (y + y1))])
             summe_der_Nachbarn++;
+          //    printf("summe_der_Nachbarn: %d \n", summe_der_Nachbarn);
         }
       }
       // Wert der untersuchten Zelle von der Summe der Felder abziehen
@@ -109,6 +110,15 @@ void evolve(char* currentfield, char* newfield, int starts[2], int ends[2],
       if (currentfield[cell_index]) {
         summe_der_Nachbarn--;
       }
+      // printf("summe_der_Nachbarn: %d \n", summe_der_Nachbarn);
+
+      // wenn zelle lebt wird 1 von der summe
+      // abgezogen
+
+      // if (currentfield[cell_index] == DEAD && summe_der_Nachbarn == 3) {
+      //   newfield[cell_index] = ALIVE;
+      // }
+
       if (summe_der_Nachbarn <= 1) {
         newfield[cell_index] = DEAD;
       }
@@ -126,6 +136,12 @@ void evolve(char* currentfield, char* newfield, int starts[2], int ends[2],
       // HINT: avoid boundaries
     }
   }
+}
+
+void swap_field(char** currentfield, char** newfield) {
+  char* temp = *currentfield;
+  *currentfield = *newfield;
+  *newfield = temp;
 }
 
 void filling_random(char* currentfield, int width, int height) {
@@ -187,27 +203,14 @@ void game(int width, int height, int num_timesteps) {
   char* currentfield = calloc(width * height, sizeof(char));
   char* newfield = calloc(width * height, sizeof(char));
   // TODO 1: use your favorite filling
-  // filling_random(currentfield, width, height);
+  // filling_random (currentfield, width, height);
   filling_runner(currentfield, width, height);
   int starts[2];
   int ends[2];
-  int this_thread = omp_get_thread_num();
-  int num_threads = omp_get_num_threads()+1;
-  starts[X] = (this_thread)*50 / num_threads;
-  starts[Y] = (this_thread)*50 / num_threads;
-  // ThreadID nutzen um die Gebietskoordinaten zu berechnen
-  // so wie hier:
-  //   #pragma omp parallel
-  // {
-  //   int this_thread = omp_get_thread_num();
-  //   int num_threads = omp_get_num_threads();
-  //   int my_start = (this_thread  ) * 10 / num_threads;
-  //   int my_end   = (this_thread+1) * 10 / num_threads;
-  //   for(int n=my_start; n<my_end; ++n)
-  //     printf(" %d", n);
-
-  ends[X] = (this_thread + 1) * 50 / num_threads;  // X ist width bereich
-  ends[Y] = (this_thread + 1) * 50 / num_threads;  // Y ist height bereich
+  starts[X] = 1;
+  starts[Y] = 1;
+  ends[X] = width - 1;   // ghost layer in x richtung
+  ends[Y] = height - 1;  // ghost layer in y richtung
   int time = 0;
   write_field(currentfield, width, height, time);
   // TODO 3: implement periodic boundary condition
@@ -216,24 +219,30 @@ void game(int width, int height, int num_timesteps) {
   for (time = 1; time <= num_timesteps; time++) {
     // TODO 2: implement evolve function (see above)
     evolve(currentfield, newfield, starts, ends, width);
+
     // TODO 3: implement periodic boundary condition
-    // hier sections um die ghostlayer
-    apply_periodic_boundaries(newfield, width, height);
-    // barrier
-    write_field(newfield, width, height, time);
-    // TODO 4: implement SWAP of the fields
+#pragma omp barrier
+#pragma omp single
+    {
+      apply_periodic_boundaries(newfield, width, height);
+
+      write_field(newfield, width, height, time);
+      // TODO 4: implement SWAP of the fields
+      swap_field(&currentfield, &newfield);
+    }
   }
   free(currentfield);
   free(newfield);
 }
 
 int main(int c, char** v) {
+  omp_set_num_threads(NUMTHREADS);
 #pragma omp parallel
-  {
+  {  // start omp
     if (omp_get_thread_num() == 0) {
       printf("Running with %d threads\n", omp_get_num_threads());
     }
-  }
+  }  // end omp
   int width = 0, height = 0, num_timesteps;
   if (c == 4) {
     width = atoi(v[1]) + 2;  ///< read width + 2 boundary cells (low x, high x)
@@ -246,11 +255,8 @@ int main(int c, char** v) {
     if (height <= 0) {
       height = 32;  ///< default height
     }
-    // game(width, height, num_timesteps);
+    game(width, height, num_timesteps);
   } else {
-    printf(
-        "Too less arguments: starting default game:\n   "
-        "game(omp_get_num_threads()*10,omp_get_num_threads()*10,100);");
-    game(omp_get_num_threads() * 50, omp_get_num_threads() * 50, 100);
+    myexit("Too less arguments");
   }
 }
