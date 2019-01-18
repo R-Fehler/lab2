@@ -2,6 +2,7 @@
     "files.associations": {
         "stdarg.h": "c",
         "string.h": "c",
-        "omp.h": "c"
+        "omp.h": "c",
+        "__locale": "c"
     }
 }
