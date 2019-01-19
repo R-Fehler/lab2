@@ -3,12 +3,12 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
         alias gtime=time
 fi
 mkdir -p log
-LOOP=1
-NTIMESTEPS=50
+LOOP=3
+NTIMESTEPS=100
 num_threads_in_x=(1 2 4) #bash Array
 num_threads_in_y=(1 2 2)
-ARRAYSIZE_PER_THREAD_X=100
-ARRAYSIZE_PER_THREAD_Y=100
+ARRAYSIZE_PER_THREAD_X=400
+ARRAYSIZE_PER_THREAD_Y=800
 PATH_TO="./build/gameoflife"
     echo "FeldNr. Zeit in sek CPU %">log/logtime 
     echo "LOG:" > log/logprogram
