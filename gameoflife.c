@@ -84,7 +84,8 @@ void write_field(char* currentfield, int width, int height, int timestep) {
 #endif
 }
 
-void evolve(char* currentfield, char* newfield, int starts[2], int ends[2],
+void evolve(char* currentfield, char* newfield, int thread_id, int num_thr_x,
+            int num_thr_y, int arrsize_X_p_thr, int arrsize_Y_p_thr,
             int width) {
   // void evolve (char* currentfield, char* newfield, int width, int height) {
   // TODO traverse through each voxel and implement game of live logic and
@@ -94,12 +95,38 @@ void evolve(char* currentfield, char* newfield, int starts[2], int ends[2],
   // TODO traverse through each voxel and implement game of live logic
 
   // segmentation in subarrays die ~ zu NUMBERTHREADS sind
-  int summe_der_Nachbarn;
   //#pragma omp for collapse(2)
-  for (int y = starts[Y] - 1; y <= ends[Y]; y++) {
-    for (int x = starts[X] - 1; x <= ends[X]; x++) {
+  //
+  // calcIndex of 2D Segment
+  int block_index[2];  // index des teilfelds per thread
+  int start[2];        // start koords des blocks
+  int end[2];          // end koords des blocks
+  block_index[X] = (thread_id % num_thr_x);
+  block_index[Y] = (thread_id / num_thr_x);
+  start[X] = block_index[X] * arrsize_X_p_thr;
+  start[Y] = block_index[Y] * arrsize_Y_p_thr;
+  end[X] = (block_index[X] + 1) * arrsize_X_p_thr;
+  end[Y] = (block_index[Y] + 1) * arrsize_Y_p_thr;
+
+  int summe_der_Nachbarn;
+  // start -1 --> bus error bei feld >>120000
+  // start +1 --> kein bus error
+  if (block_index[X] == 0) {
+    start[X]++;
+  }
+  if (block_index[Y] == 0) {
+    start[Y]++;
+  }
+  if (block_index[X] == (num_thr_x - 1)) {
+    end[X]--;
+  }
+  if (block_index[Y] == (num_thr_y - 1)) {
+    end[Y]--;
+  }
+  for (int y = start[Y]; y <= end[Y] + 1; y++) {
+    for (int x = start[X]; x <= end[X] + 1; x++) {
       summe_der_Nachbarn = 0;
-      int cell_index = calcIndex(width, x, y);
+      long cell_index = calcIndex(width, x, y);
       // Durchlaufen der 9 Felder des aktuellen "Stempels"
       for (int x1 = -1; x1 <= 1; x1++) {
         for (int y1 = -1; y1 <= 1; y1++) {
@@ -115,6 +142,7 @@ void evolve(char* currentfield, char* newfield, int starts[2], int ends[2],
 
       if (summe_der_Nachbarn <= 1) {
         newfield[cell_index] = DEAD;
+        // cellindex > als feldgrösse was ist da los?
       }
 
       else if ((summe_der_Nachbarn == 2 && currentfield[cell_index]) == ALIVE ||
@@ -201,23 +229,12 @@ void game(int width, int height, int num_timesteps, int num_threads_in_x,
   // TODO 1: use your favorite filling
   filling_random(currentfield, width, height);
   // filling_runner(currentfield, width, height);
-  int starts[2];
-  int ends[2];
-  starts[X] = 1;
-  starts[Y] = 1;
-  ends[X] = width - 1;
-  ends[Y] = height - 1;
-  int segment_start[num_threads_in_x][num_threads_in_y][2];
-  int segment_end[num_threads_in_x][num_threads_in_y][2];
-
-  for (size_t x = 0; x < num_threads_in_x; x++) {
-    for (size_t y = 0; y < num_threads_in_y; y++) {
-      segment_start[x][y][X] = 1 + (ARRAYSIZE_PER_THREAD_X * x);
-      segment_start[x][y][Y] = 1 + (ARRAYSIZE_PER_THREAD_Y * y);
-      segment_end[x][y][X] = (ARRAYSIZE_PER_THREAD_X * (x + 1)) - 1;
-      segment_end[x][y][Y] = (ARRAYSIZE_PER_THREAD_Y * (y + 1)) - 1;
-    }
-  }
+  // int starts[2];
+  // int ends[2];
+  // starts[X] = 1;
+  // starts[Y] = 1;
+  // ends[X] = width - 1;
+  // ends[Y] = height - 1;
 
   int time = 0;
   write_field(currentfield, width, height, time);
@@ -227,15 +244,11 @@ void game(int width, int height, int num_timesteps, int num_threads_in_x,
   {
     int thread_id = omp_get_thread_num();
     for (time = 1; time <= num_timesteps; time++) {
-// TODO 2: implement evolve function (see above)
-#pragma omp for collapse(2)
-      for (size_t x = 0; x < num_threads_in_x; x++) {  // TODO:
+      // TODO 2: implement evolve function (see above)
 
-        for (size_t y = 0; y < num_threads_in_y; y++) {
-          evolve(currentfield, newfield, segment_start[x][y], segment_end[x][y],
-                 width);
-        }
-      }
+      evolve(currentfield, newfield, thread_id, num_threads_in_x,
+             num_threads_in_y, ARRAYSIZE_PER_THREAD_X, ARRAYSIZE_PER_THREAD_Y,
+             width);
 
       // TODO 3: implement periodic boundary condition
 #pragma omp barrier
@@ -263,8 +276,8 @@ int main(int c, char** v) {
     ARRAYSIZE_PER_THREAD_X = atoi(v[3]);
     ARRAYSIZE_PER_THREAD_Y = atoi(v[4]);
     num_timesteps = atoi(v[5]);  ///< read timesteps
-    width = ARRAYSIZE_PER_THREAD_X * num_threads_in_x;
-    height = ARRAYSIZE_PER_THREAD_Y * num_threads_in_y;
+    width = ARRAYSIZE_PER_THREAD_X * num_threads_in_x + 2;
+    height = ARRAYSIZE_PER_THREAD_Y * num_threads_in_y + 2;
 
     if (width <= 0) {
       width = 32;  ///< default width
