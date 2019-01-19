@@ -9,8 +9,6 @@
 // Programm ARGS:  num_threads_in_x, num_threads_in_y,
 // ARRAYSIZE_PER_THREAD_X, ARRAYSIZE_PER_THREAD_Y,num_timesteps
 //
-//  ebenfalls bus error nach
-// feldgr. > 120000 ca. also ueber 12 Threads
 //
 // OPTIONAL: comment this out for console output
 //#define CONSOLE_OUTPUT
