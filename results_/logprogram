@@ -1,0 +1,19 @@
+LOG:
+Running with 1 threads
+Spielfeldgroesse: 402 x 802, = 322404
+Running with 4 threads
+Spielfeldgroesse: 802 x 1602, = 1284804
+Running with 8 threads
+Spielfeldgroesse: 1602 x 1602, = 2566404
+Running with 1 threads
+Spielfeldgroesse: 402 x 802, = 322404
+Running with 4 threads
+Spielfeldgroesse: 802 x 1602, = 1284804
+Running with 8 threads
+Spielfeldgroesse: 1602 x 1602, = 2566404
+Running with 1 threads
+Spielfeldgroesse: 402 x 802, = 322404
+Running with 4 threads
+Spielfeldgroesse: 802 x 1602, = 1284804
+Running with 8 threads
+Spielfeldgroesse: 1602 x 1602, = 2566404
