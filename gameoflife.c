@@ -7,7 +7,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 // Programm ARGS:  num_threads_in_x, num_threads_in_y,
-// ARRAYSIZE_PER_THREAD_X, ARRAYSIZE_PER_THREAD_Y,num_timesteps
+// arraysize_per_thread_x, arraysize_per_thread_y,num_timesteps
 //
 //
 // OPTIONAL: comment this out for console output
@@ -220,8 +220,8 @@ void apply_periodic_boundaries(char* field, int width, int height) {
 }
 
 void game(int width, int height, int num_timesteps, int num_threads_in_x,
-          int num_threads_in_y, int ARRAYSIZE_PER_THREAD_X,
-          int ARRAYSIZE_PER_THREAD_Y) {
+          int num_threads_in_y, int arraysize_per_thread_x,
+          int arraysize_per_thread_y) {
   char* currentfield = calloc(width * height, sizeof(char));
   char* newfield = calloc(width * height, sizeof(char));
   // TODO 1: use your favorite filling
@@ -245,7 +245,7 @@ void game(int width, int height, int num_timesteps, int num_threads_in_x,
       // TODO 2: implement evolve function (see above)
 
       evolve(currentfield, newfield, thread_id, num_threads_in_x,
-             num_threads_in_y, ARRAYSIZE_PER_THREAD_X, ARRAYSIZE_PER_THREAD_Y,
+             num_threads_in_y, arraysize_per_thread_x, arraysize_per_thread_y,
              width);
 
       // TODO 3: implement periodic boundary condition
@@ -267,15 +267,15 @@ void game(int width, int height, int num_timesteps, int num_threads_in_x,
 int main(int c, char** v) {
   int width = 0, height = 0, num_timesteps;
   int num_threads_in_x, num_threads_in_y;
-  int ARRAYSIZE_PER_THREAD_X, ARRAYSIZE_PER_THREAD_Y;
+  int arraysize_per_thread_x, arraysize_per_thread_y;
   if (c == 6) {
     num_threads_in_x = atoi(v[1]);
     num_threads_in_y = atoi(v[2]);
-    ARRAYSIZE_PER_THREAD_X = atoi(v[3]);
-    ARRAYSIZE_PER_THREAD_Y = atoi(v[4]);
+    arraysize_per_thread_x = atoi(v[3]);
+    arraysize_per_thread_y = atoi(v[4]);
     num_timesteps = atoi(v[5]);  ///< read timesteps
-    width = ARRAYSIZE_PER_THREAD_X * num_threads_in_x + 2;
-    height = ARRAYSIZE_PER_THREAD_Y * num_threads_in_y + 2;
+    width = arraysize_per_thread_x * num_threads_in_x + 2;
+    height = arraysize_per_thread_y * num_threads_in_y + 2;
 
     if (width <= 0) {
       width = 32;  ///< default width
@@ -294,7 +294,7 @@ int main(int c, char** v) {
            (width * height));
 
     game(width, height, num_timesteps, num_threads_in_x, num_threads_in_y,
-         ARRAYSIZE_PER_THREAD_X, ARRAYSIZE_PER_THREAD_Y);
+         arraysize_per_thread_x, arraysize_per_thread_y);
   } else {
     myexit("Too less arguments");
   }
